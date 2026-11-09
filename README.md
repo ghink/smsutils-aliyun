@@ -57,6 +57,33 @@ err = clients["aliyun"].SendMessage("+14155550123", "YourBrand", "SMS_GLOBE_1", 
 })
 ```
 
+## Context-aware sending
+
+The existing `client.NewClient` and `SendMessage` APIs remain available. With the
+updated local core and this driver, use the same configuration with the new factory:
+
+```go
+// Additional imports: "context", "time".
+clients, err := client.NewClientCtx(config, model.ClientOptions{Timeout: 5 * time.Second})
+if err != nil {
+    return err
+}
+ctx, cancel := context.WithTimeout(context.Background(), 3 * time.Second)
+defer cancel()
+err = clients["aliyun"].SendMessageCtx(ctx, dest, sender, template, vars)
+```
+
+`config` has the credential layout shown above. `ClientOptions.Transport` optionally
+injects a concurrency-safe HTTP transport. Context cancellation reaches the HTTP request;
+a timeout does not prove the provider did not accept the SMS, so avoid blind retries.
+Nil variable entries and malformed provider responses are rejected.
+
+These additions require the updated core source. Existing dependency versions are
+intentionally unchanged until release. For local testing, create a Go workspace containing
+this module and the sibling `smsutils/v3` core module; see the core repository's
+`CONTEXT.md` (local path: `../smsutils/CONTEXT.md`) for the complete six-module
+commands and API contracts.
+
 ## Credentials
 
 | Key | Constant | Required | Description |

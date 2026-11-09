@@ -1,6 +1,8 @@
 package aliyun
 
 import (
+	"net/http"
+
 	openapiV2 "github.com/alibabacloud-go/darabonba-openapi/v2/client"
 	dysmsapi20170525 "github.com/alibabacloud-go/dysmsapi-20170525/v5/client"
 	dysmsapi20180501 "github.com/alibabacloud-go/dysmsapi-20180501/v2/client"
@@ -67,4 +69,26 @@ func (d Driver) NewClient(params model.DriverClientParam) (model.Client, error) 
 		Marshal:       params.Marshal,
 		Unmarshal:     params.Unmarshal,
 	}, nil
+}
+
+var _ model.ClientCtx = Client{}
+var _ model.DriverCtx = Driver{}
+
+// NewClientCtx adds context support without changing the legacy driver contract.
+func (d Driver) NewClientCtx(params model.DriverClientParam, options model.ClientOptions) (model.ClientCtx, error) {
+	if options.Timeout < 0 {
+		return nil, errors.ErrDriverCredentialInvalid.WithDriverName(Name)
+	}
+
+	legacy, err := d.NewClient(params)
+	if err != nil {
+		return nil, err
+	}
+	c := legacy.(Client)
+	if options.Transport != nil || options.Timeout > 0 {
+		h := &http.Client{Transport: options.Transport, Timeout: options.Timeout}
+		c.CN.HttpClient = sdkHTTP{client: h}
+		c.Globe.HttpClient = sdkHTTP{client: h}
+	}
+	return c, nil
 }
